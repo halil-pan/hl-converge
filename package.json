@@ -1,0 +1,48 @@
+{
+  "name": "hl-converge",
+  "version": "0.1.0",
+  "description": "HL Converge \u2014 integrate, verify and finish parallel Git worktrees across coding agents",
+  "type": "module",
+  "bin": {
+    "hl-converge": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "examples",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/build-skills.mjs",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepack": "npm run build"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  },
+  "author": "HL (halil-pan)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/halil-pan/hl-converge.git"
+  },
+  "homepage": "https://github.com/halil-pan/hl-converge#readme",
+  "bugs": {
+    "url": "https://github.com/halil-pan/hl-converge/issues"
+  },
+  "keywords": [
+    "hl",
+    "git",
+    "worktree",
+    "agent-skills",
+    "claude-code",
+    "opencode",
+    "oh-my-pi",
+    "codex"
+  ]
+}

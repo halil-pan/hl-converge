@@ -1,0 +1,57 @@
+import { existsSync } from 'node:fs';
+import { run, saveRun, source, sourcePath } from './store.js';
+import { ancestor, branch, canonical, dirty, git, head, localRef, samePath, worktrees } from './git.js';
+import { ensure } from './errors.js';
+import type { Repo, CleanupResult, Source } from './types.js';
+
+export function cleanup(repo: Repo, runId: string, apply: boolean, discardIgnored: boolean, deleteBranches: boolean): unknown {
+  const r = run(repo, runId);
+  ensure(r.finishedCommit, 'RUN_NOT_FINISHED', '目标尚未接收本次验证版本，不能清理来源');
+  const targetHead = localRef(repo.root, r.target);
+  ensure(ancestor(repo.root, r.finishedCommit, targetHead), 'TARGET_NO_LONGER_CONTAINS_RUN', '目标已不包含本次集成结果，保留全部来源');
+  const primary = worktrees(repo)[0]?.path;
+  const entries: CleanupResult[] = [];
+  for (const s of r.sources) {
+    const entry: CleanupResult = { id: s.id, path: s.path, status: 'blocked' };
+    try {
+      const current: Source | null = existsSync(sourcePath(repo, s.id)) ? source(repo, s.id) : null;
+      ensure(current && current.commit === s.commit && current.path === s.path && current.branch === s.branch, 'SOURCE_RECORD_CHANGED', '就绪记录已变化，请保留后续工作');
+      ensure(s.path !== primary && !samePath(s.path, r.workspace), 'PROTECTED_WORKSPACE', '不能删除主目录或本次验证目录');
+      ensure(ancestor(repo.root, s.commit, targetHead), 'NOT_MERGED', '来源提交尚未合入目标');
+      const registered = worktrees(repo).find(w => samePath(w.path, s.path));
+      const b = git(repo.root, ['show-ref', '--verify', '--hash', `refs/heads/${s.branch}`], true).trim();
+      const previouslyDeleted = r.cleanup?.find(e => e.id === s.id)?.branchDeleted;
+      ensure((b === s.commit && ancestor(repo.root, b, targetHead)) || (!b && previouslyDeleted && !registered && !existsSync(s.path)), 'SOURCE_BRANCH_CHANGED', '任务分支出现新提交或已由其他操作删除');
+      if (!b && previouslyDeleted) entry.branchDeleted = true;
+      if (!registered && !existsSync(s.path)) entry.status = 'already-removed';
+      else {
+        ensure(registered && existsSync(s.path), 'WORKTREE_STATE_CHANGED', '目录和 Git 登记状态不一致，请通过原管理工具处理');
+        ensure(current.owner === 'git', 'HOST_MANAGED', '该目录的管理方式未确认为普通 Git worktree，请通过宿主原生方式清理');
+        ensure(current.released, 'SOURCE_NOT_RELEASED', '任务未声明停止写入；结束任务和服务后，在该目录重新 ready --released');
+        ensure(!registered.locked && canonical(s.path) === s.path, 'WORKTREE_LOCKED', '目录被锁定或路径身份变化');
+        ensure(head(s.path) === s.commit && branch(s.path) === s.branch, 'SOURCE_HEAD_CHANGED', '来源目录已经切换到其他版本');
+        ensure(!dirty(s.path), 'SOURCE_DIRTY', '来源目录仍有未提交改动');
+        const ignored = git(s.path, ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z']);
+        ensure(discardIgnored || !ignored, 'IGNORED_FILES_PRESENT', '目录包含本地忽略文件，先保留或备份；确认可丢弃后使用 --discard-ignored', { paths: ignored.split('\0').filter(Boolean).slice(0, 30) });
+        entry.status = 'eligible';
+        if (apply) { git(repo.root, ['worktree', 'remove', s.path]); entry.status = 'removed'; }
+      }
+      if (apply && deleteBranches && !entry.branchDeleted && ['removed', 'already-removed'].includes(entry.status)) {
+        git(repo.root, ['branch', '-d', s.branch]); entry.branchDeleted = true;
+      }
+    } catch (error) {
+      entry.reason = (error as Error).message;
+      entry.code = (error as { code?: string }).code ?? 'CLEANUP_FAILED';
+      entry.details = (error as { details?: unknown }).details;
+      // A branch deletion failure must not claim its worktree still exists.
+      if (!['removed', 'already-removed'].includes(entry.status)) entry.status = 'blocked';
+    }
+    entries.push(entry);
+  }
+  if (apply) {
+    r.cleanup = entries;
+    if (entries.every(e => ['removed', 'already-removed'].includes(e.status))) r.status = 'cleaned';
+    saveRun(repo, r);
+  }
+  return { run: r.id, apply, entries, integrationBranch: r.branch, note: '保留验证分支和操作记录；本命令不会归档聊天、推送或部署。' };
+}

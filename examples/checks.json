@@ -1,0 +1,6 @@
+{
+  "checks": [
+    { "name": "test", "command": ["npm", "test"], "cwd": ".", "timeoutMs": 300000 }
+  ],
+  "manualChecks": []
+}

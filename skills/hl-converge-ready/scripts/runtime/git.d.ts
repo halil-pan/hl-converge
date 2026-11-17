@@ -1,0 +1,17 @@
+import type { Repo, Worktree } from './types.js';
+export declare function gitEnv(): NodeJS.ProcessEnv;
+export declare function git(cwd: string, args: string[], optional?: boolean): string;
+export declare const canonical: (p: string) => string;
+export declare function repository(cwd: string): Repo;
+export declare const head: (cwd: string) => string;
+export declare const branch: (cwd: string) => string | null;
+export declare function localRef(cwd: string, name: string): string;
+export declare function validateBranch(cwd: string, name: string): void;
+export declare function ancestor(cwd: string, older: string, newer: string): boolean;
+export declare const dirty: (cwd: string) => string;
+export declare function clean(cwd: string): void;
+export declare function merging(cwd: string): boolean;
+export declare function worktrees(repo: Repo): Worktree[];
+export declare const samePath: (a: string, b: string) => boolean;
+export declare function assertWorkspace(repo: Repo, cwd: string): string;
+export declare function targetAvailable(repo: Repo, target: string, workspace: string): void;

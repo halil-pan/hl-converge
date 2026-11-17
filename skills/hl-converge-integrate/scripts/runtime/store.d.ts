@@ -1,0 +1,13 @@
+import type { Repo, Config, Run, Source } from './types.js';
+export declare function id(value: string): string;
+export declare function read<T>(file: string, fallback?: T): T;
+export declare function write(file: string, value: unknown): void;
+export declare const configPath: (repo: Repo) => string;
+export declare const config: (repo: Repo) => Config;
+export declare const sourcePath: (repo: Repo, name: string) => string;
+export declare const source: (repo: Repo, name: string) => Source;
+export declare const runPath: (repo: Repo, name: string) => string;
+export declare const run: (repo: Repo, name: string) => Run;
+export declare const saveRun: (repo: Repo, value: Run) => void;
+export declare const checksHash: (c: Config) => string;
+export declare function locked<T>(repo: Repo, fn: () => T | Promise<T>): Promise<T>;
