@@ -3,11 +3,7 @@
 [![CI](https://github.com/halil-pan/hl-converge/actions/workflows/ci.yml/badge.svg)](https://github.com/halil-pan/hl-converge/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**HL 系列开源工具 · 并行开发，汇聚验收。**
-
 把任意数量的功能 worktree 汇总到一个目录验证，通过后合入指定本地分支，再清理符合条件的来源目录。CLI 与两份 Agent Skills 共用实现，记录独立于聊天。
-
-`HL` 是作者的个人开源工具系列标识。`Converge` 表示把并行开发的功能汇聚起来，再验证和收尾。仓库、CLI 与两份 Skill 使用同一产品前缀。
 
 当前版本：**0.1.0**。需要 Node.js 20.11+、Git 2.35+。无运行时 npm 依赖。源码使用 TypeScript；Skill 自带已构建的运行文件。CLI 尚未发布到 npm，请使用以下 GitHub 源码或本地 tarball 安装。
 
@@ -151,6 +147,6 @@ CI 在 Linux 的 Node.js 22、24 上运行测试，并核对仓库内的 Skill �
 
 ## 许可与作者
 
-[MIT License](LICENSE) · [HL / halil-pan](https://github.com/halil-pan)
+[MIT License](LICENSE) · [halil-pan](https://github.com/halil-pan)
 
-本项目属于 HL 系列。欢迎提交问题、修复和实际使用反馈。
+欢迎提交问题、修复和实际使用反馈。
