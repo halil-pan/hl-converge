@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fixture, data, fail, env } from './helpers.mjs';
+import { fixture, data, fail, env, root } from './helpers.mjs';
 import { skillsRoot } from '../dist/install.js';
+
+const packageVersion = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 
 test('all four agents receive two self-contained Skills in isolated user directories', t=>{
   const f=fixture(t,0); const home=path.join(f.base,'isolated home');
@@ -13,7 +15,7 @@ test('all four agents receive two self-contained Skills in isolated user directo
     assert.ok(existsSync(path.join(skill.path,'SKILL.md')));
     const wrapper=path.join(skill.path,'scripts','hl-converge.mjs');
     const version=spawnSync(process.execPath,[wrapper,'--version'],{cwd:f.base,env,encoding:'utf8'});
-    assert.equal(version.status,0,version.stderr); assert.equal(version.stdout.trim(),'0.1.0');
+    assert.equal(version.status,0,version.stderr); assert.equal(version.stdout.trim(),packageVersion);
     const status=spawnSync(process.execPath,[wrapper,'--repo',f.main,'status','--json'],{cwd:f.base,env,encoding:'utf8'});
     assert.equal(status.status,0,status.stderr); assert.equal(JSON.parse(status.stdout).ok,true);
   }

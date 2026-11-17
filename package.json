@@ -1,6 +1,6 @@
 {
   "name": "hl-converge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "HL Converge \u2014 integrate, verify and finish parallel Git worktrees across coding agents",
   "type": "module",
   "bin": {

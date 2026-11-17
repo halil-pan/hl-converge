@@ -1,15 +1,21 @@
 ---
 name: hl-converge-integrate
-description: Integrate selected ready worktree tasks into one directory, validate the combined version, and optionally finish and clean up with hl-converge. Use for multi-worktree integration or resuming an existing integration run.
+description: Combine selected ready worktrees (汇总验证), verify them, finish into the recorded local target and clean eligible source worktrees with hl-converge. Wait for required human acceptance. Use for integration or resuming a run.
 ---
 
 # Integrate ready worktrees
 
 Use `node <this-skill-directory>/scripts/hl-converge.mjs ...`, resolving the path from this skill's actual location. Below, `hl-converge` means that invocation. Use `--json` for stable results and `--repo PATH` when the current directory is not the intended repository.
 
+## Default execution scope
+
+A user request to carry out this workflow, including "汇总验证" or "使用 $hl-converge-integrate，将 feature-a 和 feature-b 汇总到当前目录统一验证", requests the complete local flow: integrate the selected sources, commit necessary integration fixes, verify, finish into the recorded target, then preview and apply cleanup of eligible sources from this run. Do not stop after successful verification to ask for permission to finish or clean up. Merely loading this skill, explaining it, or drafting example prompts is not an execution request.
+
+Respect explicit limits such as "只预览", "先别合并", "保留 worktree", or "不提交". A preview is read-only; do not run integrate or other mutating stages for it. Existing task or host approval requirements still apply. Default cleanup removes eligible source worktrees; keep feature branches unless branch deletion is explicitly requested. Push, deployment and chat archival are outside this default flow and require a separate explicit request.
+
 ## Select or resume
 
-Run `status --json`. For a continuation, reuse the recorded run ID and its target; the current branch may be the verification branch. For a new run, select the requested ready task IDs and validation directory. Do not include every discovered task by default.
+Run `status --json`. For a continuation, reuse the recorded run ID and its target; the current branch may be the verification branch. For a new run, select the requested ready task IDs and validation directory. When the request omits source IDs and there is no unambiguous current run or selected task scope, ask which sources to include. Do not include every discovered task by default.
 
 Target resolution is explicit `plan --target`, otherwise the project's `config set default-target BRANCH`. Once planned, every later command reads the recorded target. Never ask for it again merely because the directory switched branches. If neither a run nor a project default supplies the target, ask once. Set a project default only when requested; changing a default does not retarget an existing run.
 
@@ -19,20 +25,22 @@ Check source commits and feature scope. The CLI takes exact recorded SHAs, not f
 
 Create a plan: `plan --source ID [--source ID...] --workspace PATH [--target BRANCH] --json`. Keep the returned run ID. Run `integrate RUN_ID`; it creates a verification branch in that directory without moving source sessions.
 
-If a merge blocks, inspect the preserved Git state. Resolve conflicts according to both features' intended behavior, commit the resolution when authorized, then run `continue RUN_ID`. A failed merge can be aborted with Git; `continue` will retry it. Ambiguous business behavior requires clarification rather than choosing one side wholesale.
+If a merge blocks, inspect the preserved Git state. Resolve clear technical conflicts according to both features' intended behavior, commit the resolution within the execution scope, then run `continue RUN_ID`. A failed merge can be aborted with Git; `continue` will retry it. Ambiguous business behavior requires clarification rather than choosing one side wholesale.
 
 Configure checks when absent: `config set checks FILE.json`. JSON contains `checks` with `name`, `command` (executable and argument array), relative `cwd`, optional `timeoutMs`, and optional `manualChecks` names. Consult actual project scripts; do not invent a passing check. Commands run in the validation directory. For Windows batch wrappers, use a Node script or executable instead of assuming shell expansion.
 
-Run `verify RUN_ID`. Commit integration fixes in the verification branch and verify again. Changed commits or check configuration invalidate prior results. Successful unchanged automated checks are reused unless `--rerun` is requested.
+Determine required human acceptance from the task requirements, project acceptance criteria and gaps in actual validation; configure the corresponding `manualChecks` before treating the run as passed. Do not invent a mandatory human gate for every run. Automated-only runs can proceed directly to finish and cleanup.
 
-For required manual acceptance, report steps and await actual results. Record a passed item with `verify RUN_ID --confirm-manual "configured name"` only after the user confirms it. Test success alone is not evidence of physical-device or business acceptance.
+Run `verify RUN_ID`. The default execution request includes committing necessary integration fixes in the verification branch and verifying again. Changed commits or check configuration invalidate prior results. Successful unchanged automated checks are reused unless `--rerun` is requested.
+
+For required manual acceptance, report the pending items, practical steps and run ID, and wait before updating the target or cleaning sources. Record a passed item with `verify RUN_ID --confirm-manual "configured name"` only after the user confirms it. Test success alone is not evidence of physical-device or business acceptance. After confirmation, continue the same run through finish and cleanup without another approval loop. If code or checks changed, revalidate and obtain any newly required acceptance for that version.
 
 ## Finish and cleanup
 
-Run `finish RUN_ID` only when updating the target was authorized and configured verification passed. It fast-forwards the recorded local target to the validated version. If the target advanced, run `refresh RUN_ID`, resolve conflicts and verify before retrying. No target re-entry is needed.
+Once all configured verification, including required human acceptance, passes, run `finish RUN_ID` as part of the default execution request, unless the user explicitly deferred the target update. It fast-forwards the recorded local target to the validated version. If the target advanced, run `refresh RUN_ID`, resolve conflicts and verify before retrying. No target re-entry or renewed merge permission is needed.
 
-If cleanup was authorized, inspect `cleanup RUN_ID --dry-run --json`, then use `cleanup RUN_ID --apply`. The core removes confirmed ordinary Git worktrees with release declarations, unchanged merged commits and clean directories. It protects main and verification directories. Ignored local files block removal; preserve them or obtain authorization for `--discard-ignored`. Add `--delete-branches` only when branch deletion was authorized.
+After a successful finish, inspect `cleanup RUN_ID --dry-run --json`, then use `cleanup RUN_ID --apply` for this run as part of the default execution request, unless the user asked to retain the worktrees. Do not ask for another cleanup approval merely because the preview is complete. The core removes confirmed ordinary Git worktrees with release declarations, unchanged merged commits and clean directories. It protects main and verification directories. Keep blocked sources and report the concrete reason. Ignored local files block removal; preserve them or obtain explicit authorization for `--discard-ignored`. Add `--delete-branches` only when branch deletion was explicitly requested.
 
-Host-managed directories use the host's native worktree cleanup when available. Without that capability, leave them intact and report remaining cleanup. This skill does not create a universal chat archive API or expand host permissions.
+Host-managed directories use the host's native worktree cleanup when available, after confirming the same release, merged-version and file-preservation conditions. Do not relabel them as ordinary Git worktrees to bypass the host. Without a safe native capability, leave them intact and report remaining cleanup. This skill does not create a universal chat archive API or expand host permissions.
 
-Existing authorization persists across stages; do not repeatedly ask for approved local operations. Keep push, deployment and chat archival within their separately authorized scope. Report the recorded target, final SHA, evidence, remaining acceptance and cleanup results.
+Existing authorization and explicit limits persist across stages and manual-acceptance replies. Report the recorded target, final SHA, evidence, remaining acceptance and removed or preserved sources. A blocked cleanup is not a completed cleanup, even if finish succeeded.
