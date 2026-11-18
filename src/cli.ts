@@ -23,7 +23,7 @@ hl-converge continue RUN_ID
 hl-converge refresh RUN_ID
 hl-converge verify RUN_ID [--confirm-manual NAME...] [--rerun]
 hl-converge finish RUN_ID
-hl-converge cleanup RUN_ID [--dry-run | --apply] [--discard-ignored] [--delete-branches]
+hl-converge cleanup RUN_ID [--dry-run | --apply] [--rebased-checkpoint SHA] [--discard-ignored] [--delete-branches]
 hl-converge status [RUN_ID]
 hl-converge install --agent claude-code|opencode|oh-my-pi|codex|all [--home PATH | --skills-dir PATH] [--force]
 
@@ -40,7 +40,7 @@ try {
     name: { type: 'string' }, label: { type: 'string' }, branch: { type: 'string' }, owner: { type: 'string' }, released: { type: 'boolean' },
     source: { type: 'string', multiple: true }, target: { type: 'string' }, workspace: { type: 'string' },
     'confirm-manual': { type: 'string', multiple: true }, rerun: { type: 'boolean' },
-    apply: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, 'discard-ignored': { type: 'boolean' }, 'delete-branches': { type: 'boolean' },
+    apply: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, 'discard-ignored': { type: 'boolean' }, 'delete-branches': { type: 'boolean' }, 'rebased-checkpoint': { type: 'string' },
     agent: { type: 'string', multiple: true }, home: { type: 'string' }, 'skills-dir': { type: 'string' }, force: { type: 'boolean' },
   } });
   json = !!v.json;
@@ -51,7 +51,7 @@ try {
     const allowed: Record<string, string[]> = {
       config: [], ready: ['name','label','branch','owner','released'], plan: ['source','target','workspace'],
       integrate: [], continue: [], refresh: [], verify: ['confirm-manual','rerun'], finish: [],
-      cleanup: ['apply','dry-run','discard-ignored','delete-branches'], status: [],
+      cleanup: ['apply','dry-run','discard-ignored','delete-branches','rebased-checkpoint'], status: [],
       install: ['agent','home','skills-dir','force'],
     };
     ensure(command in allowed, 'UNKNOWN_COMMAND', '未知命令，请运行 hl-converge --help');
@@ -81,7 +81,7 @@ try {
         if (command === 'verify') return await verify(repo, p[1]!, v['confirm-manual'] ?? [], !!v.rerun);
         if (command === 'finish') return finish(repo, p[1]!);
         ensure(!(v.apply && v['dry-run']), 'INVALID_ARGUMENTS', '--apply 与 --dry-run 不能一起使用');
-        const result = cleanup(repo, p[1]!, !!v.apply, !!v['discard-ignored'], !!v['delete-branches']) as { entries: { reason?: string; status: string }[] };
+        const result = cleanup(repo, p[1]!, !!v.apply, !!v['discard-ignored'], !!v['delete-branches'], v['rebased-checkpoint']) as { entries: { reason?: string; status: string }[] };
         if (v.apply && result.entries.some(e => e.status === 'blocked' || e.reason)) throw new FlowError('CLEANUP_PARTIAL', '部分清理被保留，请查看每个目录的原因', result);
         return result;
       };

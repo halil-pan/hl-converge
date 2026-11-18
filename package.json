@@ -1,7 +1,7 @@
 {
   "name": "hl-converge",
-  "version": "0.1.1",
-  "description": "HL Converge \u2014 integrate, verify and finish parallel Git worktrees across coding agents",
+  "version": "0.1.2",
+  "description": "HL Converge — integrate, verify and finish parallel Git worktrees across coding agents",
   "type": "module",
   "bin": {
     "hl-converge": "dist/cli.js"

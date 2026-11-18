@@ -7,6 +7,8 @@ description: Combine selected ready worktrees (汇总验证), verify them, finis
 
 Use `node <this-skill-directory>/scripts/hl-converge.mjs ...`, resolving the path from this skill's actual location. Below, `hl-converge` means that invocation. Use `--json` for stable results and `--repo PATH` when the current directory is not the intended repository.
 
+For a request to clean this chat's released source worktree for an already finished run, follow the source-side procedure in [Codex native cleanup](references/codex-cleanup.md). Do not create another integration run or move the target again.
+
 ## Default execution scope
 
 A user request to carry out this workflow, including "汇总验证" or "使用 $hl-converge-integrate，将 feature-a 和 feature-b 汇总到当前目录统一验证", requests the complete local flow: integrate the selected sources, commit necessary integration fixes, verify, finish into the recorded target, then preview and apply cleanup of eligible sources from this run. Do not stop after successful verification to ask for permission to finish or clean up. Merely loading this skill, explaining it, or drafting example prompts is not an execution request.
@@ -41,6 +43,8 @@ Once all configured verification, including required human acceptance, passes, r
 
 After a successful finish, inspect `cleanup RUN_ID --dry-run --json`, then use `cleanup RUN_ID --apply` for this run as part of the default execution request, unless the user asked to retain the worktrees. Do not ask for another cleanup approval merely because the preview is complete. The core removes confirmed ordinary Git worktrees with release declarations, unchanged merged commits and clean directories. It protects main and verification directories. Keep blocked sources and report the concrete reason. Ignored local files block removal; preserve them or obtain explicit authorization for `--discard-ignored`. Add `--delete-branches` only when branch deletion was explicitly requested.
 
-Host-managed directories use the host's native worktree cleanup when available, after confirming the same release, merged-version and file-preservation conditions. Do not relabel them as ordinary Git worktrees to bypass the host. Without a safe native capability, leave them intact and report remaining cleanup. This skill does not create a universal chat archive API or expand host permissions.
+Host-managed directories use the host's native worktree cleanup when available, after confirming the same release, merged-version and file-preservation conditions. On Codex, a worktree belonging to another chat can require that chat to perform the native cleanup. Read [Codex native cleanup](references/codex-cleanup.md): locate the exact source chat, obtain any required direct human authorization to message it, dispatch the limited cleanup request, wait for its result, then verify removal with the CLI. A permission denial on `attach_worktree` is not the end of the workflow when this authorized source-chat route is available. Do not ask the user to switch windows and relay an already authorized request.
+
+Do not relabel host-managed directories as ordinary Git worktrees, forge attachment identities, or use Git deletion to bypass the host. If native cleanup or authorized source-chat coordination is unavailable, leave the directory intact and report the specific blocker. Cleanup does not archive chats or expand host permissions.
 
 Existing authorization and explicit limits persist across stages and manual-acceptance replies. Report the recorded target, final SHA, evidence, remaining acceptance and removed or preserved sources. A blocked cleanup is not a completed cleanup, even if finish succeeded.

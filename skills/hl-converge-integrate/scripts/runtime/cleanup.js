@@ -2,11 +2,17 @@ import { existsSync } from 'node:fs';
 import { run, saveRun, source, sourcePath } from './store.js';
 import { ancestor, branch, canonical, dirty, git, head, localRef, samePath, worktrees } from './git.js';
 import { ensure } from './errors.js';
-export function cleanup(repo, runId, apply, discardIgnored, deleteBranches) {
+export function cleanup(repo, runId, apply, discardIgnored, deleteBranches, checkpoint) {
     const r = run(repo, runId);
     ensure(r.finishedCommit, 'RUN_NOT_FINISHED', '目标尚未接收本次验证版本，不能清理来源');
     const targetHead = localRef(repo.root, r.target);
-    ensure(ancestor(repo.root, r.finishedCommit, targetHead), 'TARGET_NO_LONGER_CONTAINS_RUN', '目标已不包含本次集成结果，保留全部来源');
+    const rebasedTarget = !ancestor(repo.root, r.finishedCommit, targetHead);
+    const rebasedCheckpoint = rebasedTarget ? checkpoint ?? r.cleanupTarget?.checkpoint ?? targetHead : undefined;
+    if (rebasedCheckpoint) {
+        ensure(/^[a-f0-9]{40}([a-f0-9]{24})?$/i.test(rebasedCheckpoint), 'INVALID_CHECKPOINT', '检查点必须是完整提交 SHA');
+        ensure(ancestor(repo.root, rebasedCheckpoint, targetHead), 'CHECKPOINT_NOT_IN_TARGET', '目标已不包含该重写历史检查点，保留全部来源');
+        ensure(equivalentTarget(repo, r.finishedCommit, rebasedCheckpoint), 'TARGET_NO_LONGER_CONTAINS_RUN', '无法证明检查点保留原集成补丁与最终文件树，保留全部来源');
+    }
     const primary = worktrees(repo)[0]?.path;
     const entries = [];
     for (const s of r.sources) {
@@ -15,11 +21,12 @@ export function cleanup(repo, runId, apply, discardIgnored, deleteBranches) {
             const current = existsSync(sourcePath(repo, s.id)) ? source(repo, s.id) : null;
             ensure(current && current.commit === s.commit && current.path === s.path && current.branch === s.branch, 'SOURCE_RECORD_CHANGED', '就绪记录已变化，请保留后续工作');
             ensure(s.path !== primary && !samePath(s.path, r.workspace), 'PROTECTED_WORKSPACE', '不能删除主目录或本次验证目录');
-            ensure(ancestor(repo.root, s.commit, targetHead), 'NOT_MERGED', '来源提交尚未合入目标');
+            const sourceMerged = ancestor(repo.root, s.commit, targetHead) || (rebasedTarget && ancestor(repo.root, s.commit, r.finishedCommit));
+            ensure(sourceMerged, 'NOT_MERGED', '来源提交尚未合入目标');
             const registered = worktrees(repo).find(w => samePath(w.path, s.path));
             const b = git(repo.root, ['show-ref', '--verify', '--hash', `refs/heads/${s.branch}`], true).trim();
             const previouslyDeleted = r.cleanup?.find(e => e.id === s.id)?.branchDeleted;
-            ensure((b === s.commit && ancestor(repo.root, b, targetHead)) || (!b && previouslyDeleted && !registered && !existsSync(s.path)), 'SOURCE_BRANCH_CHANGED', '任务分支出现新提交或已由其他操作删除');
+            ensure((b === s.commit && sourceMerged) || (!b && previouslyDeleted && !registered && !existsSync(s.path)), 'SOURCE_BRANCH_CHANGED', '任务分支出现新提交或已由其他操作删除');
             if (!b && previouslyDeleted)
                 entry.branchDeleted = true;
             if (!registered && !existsSync(s.path))
@@ -56,9 +63,19 @@ export function cleanup(repo, runId, apply, discardIgnored, deleteBranches) {
     }
     if (apply) {
         r.cleanup = entries;
+        r.cleanupTarget = { commit: targetHead, rebased: rebasedTarget, ...(rebasedCheckpoint ? { checkpoint: rebasedCheckpoint } : {}) };
         if (entries.every(e => ['removed', 'already-removed'].includes(e.status)))
             r.status = 'cleaned';
         saveRun(repo, r);
     }
-    return { run: r.id, apply, entries, integrationBranch: r.branch, note: '保留验证分支和操作记录；本命令不会归档聊天、推送或部署。' };
+    return { run: r.id, apply, targetCommit: targetHead, rebasedTarget, rebasedCheckpoint, entries, integrationBranch: r.branch, note: '保留验证分支和操作记录；本命令不会归档聊天、推送或部署。' };
+}
+function equivalentTarget(repo, finishedCommit, targetHead) {
+    // rebase 会改写 SHA；仅补丁曾出现还不够，撤销或后续冲突也必须阻止清理。
+    const unmatched = git(repo.root, ['log', '--cherry-pick', '--right-only', '--no-merges', '--format=%H', `${targetHead}...${finishedCommit}`]);
+    if (unmatched.trim())
+        return false;
+    const mergedTree = git(repo.root, ['merge-tree', '--write-tree', finishedCommit, targetHead], true).trim();
+    const targetTree = git(repo.root, ['rev-parse', `${targetHead}^{tree}`]).trim();
+    return mergedTree === targetTree;
 }

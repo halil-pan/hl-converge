@@ -28,4 +28,5 @@ export interface Run {
   expectedHead?: string; verification?: Verification;
   finishIntent?: { commit: string; targetBefore: string };
   finishedCommit?: string; cleanup?: CleanupResult[]; createdAt: string; updatedAt: string;
+  cleanupTarget?: { commit: string; rebased: boolean; checkpoint?: string };
 }

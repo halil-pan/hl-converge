@@ -28,4 +28,8 @@ The default execution request includes eligibility for later cleanup. Add `--rel
 
 The CLI records the source in the repository's shared Git administration directory. Other worktree sessions can read it with `status`; no chat-to-chat messaging or copied status file is needed.
 
+On Codex, native deletion can be restricted to the chat that owns the worktree. After a successful integration, an authorized integration chat may send this source chat a limited native-cleanup request. Follow the source-side procedure linked from `hl-converge-integrate`: recheck the finished run and current source, preserve ignored files, then clean only this chat's eligible worktree with the native tool. This does not resume feature writes, delete its branch, or archive the chat; the coordinator reads the result without needing a reply message.
+
+Ownership alone does not imply direct removability: Codex's archive tool also protects a task's current primary checkout. Return control to the coordinator for the supported, fully backed-up Handoff retirement procedure linked from `hl-converge-integrate`; do not recreate or relabel the directory, edit host state, or force Git deletion. Future work can also use the host's attached `create_worktree` / `archive_worktree` lifecycle when available.
+
 Return the task ID, worktree path, branch, complete SHA, checks performed, outstanding acceptance items, ownership and release status. After releasing, do not resume writes to that directory without re-registering the new state. Leave integration and cleanup to the main-directory workflow.

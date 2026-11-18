@@ -89,4 +89,9 @@ export interface Run {
     cleanup?: CleanupResult[];
     createdAt: string;
     updatedAt: string;
+    cleanupTarget?: {
+        commit: string;
+        rebased: boolean;
+        checkpoint?: string;
+    };
 }
